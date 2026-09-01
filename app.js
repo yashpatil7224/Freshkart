@@ -2829,7 +2829,7 @@ window.openForgotPasswordModal = function() {
 window.sendRegistrationOTP = async function() {
     const emailInput = document.getElementById('regEmail') || document.getElementById('regUsername');
     const nameInput = document.getElementById('regFullName');
-    const sendBtn = document.getElementById('sendRegOTPBtn');
+    const sendBtn = document.getElementById('sendOtpBtn') || document.getElementById('sendRegOTPBtn');
 
     const email = emailInput ? emailInput.value.trim().toLowerCase() : '';
     const fullName = nameInput ? nameInput.value.trim() : 'New Customer';
@@ -2839,17 +2839,35 @@ window.sendRegistrationOTP = async function() {
         return;
     }
 
-    const generatedOtp = String(Math.floor(100000 + Math.random() * 900000));
-    window._registration_email_otp = generatedOtp;
-
     if (sendBtn) {
         sendBtn.disabled = true;
         sendBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sending...';
     }
 
+    let generatedOtp = '';
+
+    try {
+        const response = await fetchWithTimeout(`${API_BASE_URL}/auth/send-otp`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email })
+        }, 15000);
+
+        if (response && response.ok) {
+            const data = await response.json();
+            generatedOtp = data.otp_preview || '';
+        }
+    } catch (e) {}
+
+    if (!generatedOtp) {
+        generatedOtp = String(Math.floor(100000 + Math.random() * 900000));
+    }
+
+    window._registration_email_otp = generatedOtp;
+
     try {
         await sendOTPViaEmailJS(email, generatedOtp, fullName);
-        showToast(`📩 Verification code sent to <strong>${email}</strong> via EmailJS! Check your email inbox.`, 'success');
+        showToast(`📩 Verification code sent to <strong>${email}</strong>! Check your email inbox.`, 'success');
     } catch (e) {
         showToast(`📩 Verification code sent to <strong>${email}</strong>! Check your email inbox.`, 'success');
     } finally {
